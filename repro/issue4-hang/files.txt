@@ -1,0 +1,18 @@
+# Required media (all under ./media -> ../../media/shuili)
+
+media/C0500.MP4 268477207
+media/C0501.MP4 302032591
+media/C0505.MP4 134256863
+media/C0506.MP4 402697555
+media/C0507.MP4 201366985
+media/C0509.MP4 201367155
+media/C0510.MP4 167812007
+media/C0503.MP4 536917901
+media/C0508.MP4 268477559
+media/C0512.MP4 100702025
+media/C0511.MP4 67147159
+media/C0502.MP4 201366915
+media/sine33.wav 6336078
+
+# Binary
+../../target/debug/oak-mcp 19162488
