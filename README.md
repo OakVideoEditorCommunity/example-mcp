@@ -10,6 +10,10 @@ effect chains and keyframes, render preview frames (returned as PNG images),
 export deliverables asynchronously, and round-trip OpenTimelineIO — all through
 MCP tool calls.
 
+The MCP layer uses the official [`rmcp`](https://crates.io/crates/rmcp) SDK;
+`src/tools/` contains only engine-facing tools, so adding a tool does not touch
+protocol code.
+
 ## Tools
 
 50 tools in seven groups (each has a JSON schema and read-only/destructive
@@ -45,7 +49,7 @@ bundle the intended tool sequence.
 
 ## Requirements
 
-- Rust 1.85+ (edition 2024).
+- Rust 1.88+ (edition 2024; `rmcp` requires 1.88).
 - The **project FFmpeg 8.1 build** that Quercus pins: a static install prefix
   with `lib/pkgconfig`. A distro/system FFmpeg is not supported. Build it once
   in a checkout of `quercus-engine` with
@@ -122,9 +126,8 @@ task_wait {task: "t1", timeout_ms: 120000}
 
 | Path | Purpose |
 |---|---|
-| `src/main.rs` | CLI, stdio loop, `--check` |
-| `src/rpc.rs` | JSON-RPC 2.0 model + line framing |
-| `src/server.rs` | MCP lifecycle, tools/resources/prompts, logging |
+| `src/main.rs` | CLI, `rmcp` stdio server bootstrap, `--check` |
+| `src/server.rs` | `rmcp` `ServerHandler`: tools/resources/prompts mapping |
 | `src/state.rs` | Sessions, async task registry, render init |
 | `src/tools/` | Tool definitions and handlers, grouped by domain |
 | `src/convert.rs` | DTO → JSON, seconds ↔ frame timestamps |
@@ -133,6 +136,14 @@ task_wait {task: "t1", timeout_ms: 120000}
 
 The process is single-threaded: requests are handled in order, engine tasks run
 on Quercus' own workers, and `task_wait` blocks only the calling request.
+
+## Adding a tool
+
+Tools are plain declarations: add a `ToolDef` to the relevant `src/tools/*.rs`
+module (name, description, JSON Schema, handler), append it to that module's
+`tools()` list, and `rmcp` publishes it — no protocol code is involved.
+Handlers parse arguments through `Args` and return
+`ToolReply::{json,image,error}`.
 
 ## Testing
 

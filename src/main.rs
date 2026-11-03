@@ -1,36 +1,36 @@
 //! `oak-mcp`: a Model Context Protocol server for the Quercus video engine.
 //!
-//! Transport is MCP stdio: newline-delimited JSON-RPC on stdin/stdout. Anything
-//! printed to stdout that is not a protocol message corrupts the session, so all
-//! diagnostics go to stderr.
+//! Transport and MCP lifecycle are provided by the official `rmcp` SDK
+//! (`rmcp::transport::stdio`), so this example only contains the engine-facing
+//! tools. Anything printed to stdout that is not a protocol message corrupts
+//! the session, so all diagnostics go to stderr.
 
 #![forbid(unsafe_code)]
 
 mod convert;
 mod image;
-mod rpc;
 mod server;
 mod sidecar;
 mod state;
 mod tools;
 
-use std::io::{self, BufWriter};
-
 use quercus_engine_rs::editor::EditorSession;
 use quercus_engine_rs::render::{self, RenderBackend};
-use serde_json::{Value, json};
+use rmcp::ServiceExt;
+use serde_json::json;
 
-fn main() {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
 	let mut verbose = false;
 	for argument in std::env::args().skip(1) {
 		match argument.as_str() {
 			"-h" | "--help" => {
 				print_help();
-				return;
+				return Ok(());
 			}
 			"-V" | "--version" => {
 				println!("oak-mcp {}", env!("CARGO_PKG_VERSION"));
-				return;
+				return Ok(());
 			}
 			"--check" => std::process::exit(run_check(verbose)),
 			"-v" | "--verbose" => verbose = true,
@@ -58,45 +58,14 @@ fn main() {
 		);
 	}
 
-	let stdin = io::stdin();
-	let stdout = io::stdout();
-	let mut reader = stdin.lock();
-	let mut writer = BufWriter::new(stdout.lock());
-
-	loop {
-		match rpc::read_line(&mut reader) {
-			Ok(Some(line)) => {
-				let message: Value = match serde_json::from_str(line.trim()) {
-					Ok(value) => value,
-					Err(error) => {
-						let response = rpc::error_response(
-							Value::Null,
-							&rpc::RpcError::parse(error.to_string()),
-						);
-						if rpc::write_message(&mut writer, &response).is_err() {
-							break;
-						}
-						continue;
-					}
-				};
-				if let Some(response) = server::handle(&mut state, message) {
-					if let Err(error) = rpc::write_message(&mut writer, &response) {
-						eprintln!("oak-mcp: failed to write a response: {error}");
-						break;
-					}
-				}
-			}
-			Ok(None) => break,
-			Err(error) => {
-				eprintln!("oak-mcp: stdin error: {error}");
-				break;
-			}
-		}
-	}
+	let handler = server::QuercusServer::new(state);
+	let service = handler.serve(rmcp::transport::stdio()).await?;
+	let _ = service.waiting().await?;
 
 	if verbose {
-		eprintln!("oak-mcp: stdin closed, shutting down");
+		eprintln!("oak-mcp: client disconnected, shutting down");
 	}
+	Ok(())
 }
 
 fn print_help() {
@@ -112,9 +81,8 @@ OPTIONS:
     -h, --help      Print this help
     -V, --version   Print the version
 
-The server speaks MCP over stdio: newline-delimited JSON-RPC 2.0 on
-stdin/stdout. Configure it in an MCP client with command `oak-mcp` and no
-arguments.
+The server speaks MCP over stdio. Configure it in an MCP client with command
+`oak-mcp` and no arguments.
 
 The Quercus engine links the project FFmpeg 8.1 build statically and needs
 OpenColorIO 2.x at build time; see README.md for setup.",

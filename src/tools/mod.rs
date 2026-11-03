@@ -13,10 +13,11 @@ pub mod project;
 pub mod render;
 
 use std::panic::{AssertUnwindSafe, catch_unwind};
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
 
 use quercus_engine_rs::node::NodeId;
-use serde_json::{Map, Value, json};
+use rmcp::model::{CallToolResult, ContentBlock, JsonObject, Tool, ToolAnnotations};
+use serde_json::Value;
 
 use crate::convert;
 use crate::state::ServerState;
@@ -43,20 +44,18 @@ pub struct ToolDef {
 }
 
 impl ToolDef {
-	/// The `tools/list` descriptor for this tool.
-	pub fn descriptor(&self) -> Value {
-		json!({
-			"name": self.name,
-			"title": self.title,
-			"description": self.description,
-			"inputSchema": (self.input_schema)(),
-			"annotations": {
-				"readOnlyHint": self.read_only,
-				"destructiveHint": self.destructive,
-				"idempotentHint": self.read_only,
-				"openWorldHint": false,
-			},
-		})
+	/// The `rmcp` tool descriptor for this tool.
+	pub fn tool(&self) -> Tool {
+		let schema_value = (self.input_schema)();
+		let schema: JsonObject = schema_value.as_object().cloned().unwrap_or_default();
+		let annotations = ToolAnnotations::new()
+			.read_only(self.read_only)
+			.destructive(self.destructive)
+			.idempotent(self.read_only)
+			.open_world(false);
+		Tool::new(self.name, self.description, Arc::new(schema))
+			.with_title(self.title)
+			.with_annotations(annotations)
 	}
 }
 
@@ -104,7 +103,7 @@ pub fn call(state: &mut ServerState, name: &str, arguments: Value) -> Option<Too
 /// A tool result: MCP content blocks plus optional structured content.
 pub struct ToolReply {
 	/// MCP content blocks (text and/or images).
-	pub content: Vec<Value>,
+	pub content: Vec<ContentBlock>,
 	/// Machine-readable result, when the tool returns structured data.
 	pub structured: Option<Value>,
 	/// Whether this is a tool execution error.
@@ -116,7 +115,7 @@ impl ToolReply {
 	pub fn json(value: Value) -> Self {
 		let text = serde_json::to_string(&value).unwrap_or_else(|_| "{}".to_string());
 		Self {
-			content: vec![text_block(text)],
+			content: vec![ContentBlock::text(text)],
 			structured: Some(value),
 			is_error: false,
 		}
@@ -125,7 +124,7 @@ impl ToolReply {
 	/// A tool error.
 	pub fn error(message: impl Into<String>) -> Self {
 		Self {
-			content: vec![text_block(message.into())],
+			content: vec![ContentBlock::text(message.into())],
 			structured: None,
 			is_error: true,
 		}
@@ -138,30 +137,24 @@ impl ToolReply {
 		let text = serde_json::to_string(&metadata).unwrap_or_else(|_| "{}".to_string());
 		Self {
 			content: vec![
-				json!({ "type": "image", "data": data, "mimeType": "image/png" }),
-				text_block(text),
+				ContentBlock::image(data, "image/png"),
+				ContentBlock::text(text),
 			],
 			structured: Some(metadata),
 			is_error: false,
 		}
 	}
 
-	/// Converts to the object MCP puts in `result`.
-	pub fn into_value(self) -> Value {
-		let mut object = Map::new();
-		object.insert("content".to_string(), Value::Array(self.content));
-		if let Some(structured) = self.structured {
-			object.insert("structuredContent".to_string(), structured);
-		}
-		if self.is_error {
-			object.insert("isError".to_string(), Value::Bool(true));
-		}
-		Value::Object(object)
+	/// Converts to the `tools/call` result `rmcp` sends to the client.
+	pub fn into_call_tool_result(self) -> CallToolResult {
+		let mut result = if self.is_error {
+			CallToolResult::error(self.content)
+		} else {
+			CallToolResult::success(self.content)
+		};
+		result.structured_content = self.structured;
+		result
 	}
-}
-
-fn text_block(text: String) -> Value {
-	json!({ "type": "text", "text": text })
 }
 
 /// Typed accessors over a tool's arguments object.

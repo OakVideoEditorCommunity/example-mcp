@@ -421,9 +421,14 @@ fn render_audio(state: &mut ServerState, arguments: Value) -> Result<ToolReply, 
 	let samples: Vec<f32> = if gain_db == 0.0 {
 		samples
 	} else {
-		samples.iter().map(|sample| (sample * gain).clamp(-1.0, 1.0)).collect()
+		samples
+			.iter()
+			.map(|sample| (sample * gain).clamp(-1.0, 1.0))
+			.collect()
 	};
-	let peak = samples.iter().fold(0f32, |peak, sample| peak.max(sample.abs()));
+	let peak = samples
+		.iter()
+		.fold(0f32, |peak, sample| peak.max(sample.abs()));
 	let rms = if samples.is_empty() {
 		0.0
 	} else {
@@ -431,7 +436,12 @@ fn render_audio(state: &mut ServerState, arguments: Value) -> Result<ToolReply, 
 	};
 	let wav = match args.opt_str("filename") {
 		Some(path) => {
-			write_wav(&path, &samples, info.sample_rate.max(sample_rate as i32) as u32, info.channel_count.max(1) as u16)?;
+			write_wav(
+				&path,
+				&samples,
+				info.sample_rate.max(sample_rate as i32) as u32,
+				info.channel_count.max(1) as u16,
+			)?;
 			Some(path)
 		}
 		None => None,

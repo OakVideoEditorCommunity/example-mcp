@@ -1,200 +1,181 @@
-//! MCP protocol handling: lifecycle, tools, resources, prompts, logging.
+//! MCP server built on the official `rmcp` SDK.
+//!
+//! The MCP transport, lifecycle and JSON-RPC plumbing come from `rmcp`; this
+//! module only maps the engine-facing tools/resources/prompts onto its
+//! `ServerHandler` trait. Tools are declared once in [`crate::tools`] with a
+//! JSON Schema and a handler, so adding a tool never touches protocol code.
 
+use std::borrow::Cow;
+use std::sync::{Arc, Mutex};
+
+use rmcp::model::{
+	CallToolRequestParams, CallToolResponse, GetPromptRequestParams, GetPromptResponse,
+	GetPromptResult, Implementation, JsonObject, ListPromptsResult, ListResourcesResult,
+	ListToolsResult, PaginatedRequestParams, Prompt, PromptArgument, PromptMessage,
+	ReadResourceRequestParams, ReadResourceResponse, ReadResourceResult, Resource,
+	ResourceContents, Role, ServerCapabilities, ServerConfig,
+};
+use rmcp::service::RequestContext;
+use rmcp::{ErrorData as McpError, RoleServer, ServerHandler};
 use serde_json::{Value, json};
 
 use crate::convert;
-use crate::rpc::{self, Request, RpcError};
 use crate::state::ServerState;
 use crate::tools;
 
-/// Protocol revisions this server implements, newest first.
-const SUPPORTED_VERSIONS: [&str; 3] = ["2025-06-18", "2025-03-26", "2024-11-05"];
+/// Protocol revisions this server implements (newest first).
+const SUPPORTED_VERSIONS: [rmcp::model::ProtocolVersion; 3] = [
+	rmcp::model::ProtocolVersion::V_2025_06_18,
+	rmcp::model::ProtocolVersion::V_2025_03_26,
+	rmcp::model::ProtocolVersion::V_2024_11_05,
+];
 
 const INSTRUCTIONS: &str = "\
 This server edits video through the Quercus nonlinear editing engine. \
 Times are seconds; node ids are opaque decimal strings that come from tool \
 results (never invent one). A typical session: project_new -> media_import -> \
 clip_place -> timeline_get -> preview_frame -> export_start -> task_wait. \
-The engine keeps undo history per process; use the undo/redo tools. \
 Preview frames are returned as PNG images, so check your edit visually before \
 exporting. Export runs asynchronously: keep the task id and poll it.";
 
-/// Handles one decoded JSON-RPC message (or a batch) and returns the response,
-/// or `None` for notifications.
-pub fn handle(state: &mut ServerState, message: Value) -> Option<Value> {
-	if let Some(batch) = message.as_array() {
-		if batch.is_empty() {
-			return Some(rpc::error_response(
-				Value::Null,
-				&RpcError::invalid_request("empty JSON-RPC batch"),
-			));
+/// The MCP server state shared by all handlers.
+pub struct QuercusServer {
+	state: Arc<Mutex<ServerState>>,
+}
+
+impl QuercusServer {
+	/// Wraps the server state shared with the tool implementations.
+	pub fn new(state: ServerState) -> Self {
+		Self {
+			state: Arc::new(Mutex::new(state)),
 		}
-		let responses: Vec<Value> = batch
+	}
+
+	fn lock(&self) -> std::sync::MutexGuard<'_, ServerState> {
+		self.state.lock().unwrap_or_else(|error| error.into_inner())
+	}
+}
+
+impl ServerHandler for QuercusServer {
+	fn get_info(&self) -> ServerConfig {
+		let mut implementation = Implementation::new("oak-mcp", env!("CARGO_PKG_VERSION"));
+		implementation.title = Some("Oak MCP (Quercus engine)".into());
+		implementation.description = Some("MCP server for the Quercus video-editing engine".into());
+		ServerConfig::new(
+			ServerCapabilities::builder()
+				.enable_tools()
+				.enable_resources()
+				.enable_prompts()
+				.build(),
+		)
+		.with_server_info(implementation)
+		.with_instructions(INSTRUCTIONS)
+	}
+
+	fn supported_protocol_versions(&self) -> Cow<'static, [rmcp::model::ProtocolVersion]> {
+		Cow::Borrowed(&SUPPORTED_VERSIONS)
+	}
+
+	async fn list_tools(
+		&self,
+		_request: Option<PaginatedRequestParams>,
+		_context: RequestContext<RoleServer>,
+	) -> Result<ListToolsResult, McpError> {
+		let tools = tools::all()
 			.iter()
-			.filter_map(|item| handle_single(state, item.clone()))
+			.map(|definition| definition.tool())
 			.collect();
-		if responses.is_empty() {
-			None
-		} else {
-			Some(Value::Array(responses))
+		Ok(ListToolsResult::with_all_items(tools))
+	}
+
+	async fn call_tool(
+		&self,
+		request: CallToolRequestParams,
+		_context: RequestContext<RoleServer>,
+	) -> Result<CallToolResponse, McpError> {
+		let arguments = request
+			.arguments
+			.map(Value::Object)
+			.unwrap_or_else(|| Value::Object(JsonObject::new()));
+		let mut state = self.lock();
+		let reply = tools::call(&mut state, request.name.as_ref(), arguments);
+		state.prune_finished_tasks();
+		match reply {
+			Some(reply) => Ok(reply.into_call_tool_result().into()),
+			None => Err(McpError::invalid_params(
+				format!("unknown tool `{}`", request.name),
+				None,
+			)),
 		}
-	} else {
-		handle_single(state, message)
+	}
+
+	async fn list_resources(
+		&self,
+		_request: Option<PaginatedRequestParams>,
+		_context: RequestContext<RoleServer>,
+	) -> Result<ListResourcesResult, McpError> {
+		let state = self.lock();
+		let mut resources = vec![
+			Resource::new("quercus://server/info", "Server info")
+				.with_description("Server version, protocol, and open sessions")
+				.with_mime_type("application/json"),
+		];
+		for entry in state.session_entries() {
+			resources.push(
+				Resource::new(
+					format!("quercus://session/{}/timeline", entry.id),
+					format!("{} timeline", entry.label),
+				)
+				.with_description("Sequences, tracks, and clips")
+				.with_mime_type("application/json"),
+			);
+			resources.push(
+				Resource::new(
+					format!("quercus://session/{}/project", entry.id),
+					format!("{} project", entry.label),
+				)
+				.with_description("Full project snapshot")
+				.with_mime_type("application/json"),
+			);
+		}
+		Ok(ListResourcesResult::with_all_items(resources))
+	}
+
+	async fn read_resource(
+		&self,
+		request: ReadResourceRequestParams,
+		_context: RequestContext<RoleServer>,
+	) -> Result<ReadResourceResponse, McpError> {
+		let state = self.lock();
+		let body = resource_body(&state, &request.uri)?;
+		let text = serde_json::to_string(&body)
+			.map_err(|error| McpError::internal_error(error.to_string(), None))?;
+		let contents = ResourceContents::text(text, request.uri).with_mime_type("application/json");
+		Ok(ReadResourceResult::new(vec![contents]).into())
+	}
+
+	async fn list_prompts(
+		&self,
+		_request: Option<PaginatedRequestParams>,
+		_context: RequestContext<RoleServer>,
+	) -> Result<ListPromptsResult, McpError> {
+		Ok(ListPromptsResult::with_all_items(prompts()))
+	}
+
+	async fn get_prompt(
+		&self,
+		request: GetPromptRequestParams,
+		_context: RequestContext<RoleServer>,
+	) -> Result<GetPromptResponse, McpError> {
+		let text = prompt_text(&request)?;
+		let message = PromptMessage::new_text(Role::User, text);
+		Ok(GetPromptResult::new(vec![message])
+			.with_description(format!("Prompt `{}`", request.name))
+			.into())
 	}
 }
 
-fn handle_single(state: &mut ServerState, message: Value) -> Option<Value> {
-	let id = message.get("id").cloned().unwrap_or(Value::Null);
-	let request = match Request::from_value(&message) {
-		Ok(request) => request,
-		Err(error) => return Some(rpc::error_response(id, &error)),
-	};
-	let is_notification = request.id.is_none();
-	let outcome = dispatch(state, &request);
-	if is_notification {
-		return None;
-	}
-	let id = request.id.clone().unwrap_or(Value::Null);
-	match outcome {
-		Ok(Some(result)) => Some(rpc::response(id, result)),
-		Ok(None) => None,
-		Err(error) => Some(rpc::error_response(id, &error)),
-	}
-}
-
-fn dispatch(state: &mut ServerState, request: &Request) -> Result<Option<Value>, RpcError> {
-	match request.method.as_str() {
-		"initialize" => initialize(state, request).map(Some),
-		"ping" => Ok(Some(json!({}))),
-		"tools/list" => Ok(Some(json!({
-			"tools": tools::all().iter().map(|tool| tool.descriptor()).collect::<Vec<_>>(),
-		}))),
-		"tools/call" => call_tool(state, request).map(Some),
-		"resources/list" => Ok(Some(list_resources(state))),
-		"resources/read" => read_resource(state, request).map(Some),
-		"resources/templates/list" => Ok(Some(json!({
-			"resourceTemplates": [
-				{
-					"uriTemplate": "quercus://session/{session}/timeline",
-					"name": "Session timeline",
-					"description": "Sequences, tracks, and clips of one session",
-					"mimeType": "application/json"
-				},
-				{
-					"uriTemplate": "quercus://session/{session}/project",
-					"name": "Session project",
-					"description": "The full project snapshot of one session",
-					"mimeType": "application/json"
-				}
-			]
-		}))),
-		"prompts/list" => Ok(Some(list_prompts())),
-		"prompts/get" => get_prompt(request).map(Some),
-		"logging/setLevel" => set_log_level(state, request).map(Some),
-		"notifications/initialized"
-		| "initialized"
-		| "notifications/cancelled"
-		| "notifications/roots/list_changed"
-		| "notifications/progress" => Ok(None),
-		other => Err(RpcError::method_not_found(other)),
-	}
-}
-
-fn initialize(state: &mut ServerState, request: &Request) -> Result<Value, RpcError> {
-	let params = request.params_or_empty();
-	let requested = params
-		.get("protocolVersion")
-		.and_then(Value::as_str)
-		.unwrap_or(SUPPORTED_VERSIONS[0]);
-	let negotiated = if SUPPORTED_VERSIONS.contains(&requested) {
-		requested.to_string()
-	} else {
-		SUPPORTED_VERSIONS[0].to_string()
-	};
-	state.protocol_version = negotiated.clone();
-	Ok(json!({
-		"protocolVersion": negotiated,
-		"capabilities": {
-			"tools": { "listChanged": false },
-			"resources": { "subscribe": false, "listChanged": false },
-			"prompts": { "listChanged": false },
-			"logging": {},
-		},
-		"serverInfo": {
-			"name": "oak-mcp",
-			"title": "Oak MCP (Quercus engine)",
-			"version": env!("CARGO_PKG_VERSION"),
-		},
-		"instructions": INSTRUCTIONS,
-	}))
-}
-
-fn call_tool(state: &mut ServerState, request: &Request) -> Result<Value, RpcError> {
-	let params = request
-		.params
-		.as_ref()
-		.ok_or_else(|| RpcError::invalid_params("tools/call requires params"))?;
-	let name = params
-		.get("name")
-		.and_then(Value::as_str)
-		.ok_or_else(|| RpcError::invalid_params("missing tool `name`"))?;
-	let arguments = params
-		.get("arguments")
-		.cloned()
-		.unwrap_or_else(|| json!({}));
-	if !arguments.is_object() {
-		return Err(RpcError::invalid_params("`arguments` must be an object"));
-	}
-	let reply = tools::call(state, name, arguments)
-		.ok_or_else(|| RpcError::invalid_params(format!("unknown tool `{name}`")))?;
-	state.prune_finished_tasks();
-	Ok(reply.into_value())
-}
-
-fn list_resources(state: &ServerState) -> Value {
-	let mut resources = vec![json!({
-		"uri": "quercus://server/info",
-		"name": "Server info",
-		"description": "Server version, negotiated protocol, and open sessions",
-		"mimeType": "application/json",
-	})];
-	for entry in state.session_entries() {
-		resources.push(json!({
-			"uri": format!("quercus://session/{}/timeline", entry.id),
-			"name": format!("{} timeline", entry.label),
-			"description": "Sequences, tracks, and clips",
-			"mimeType": "application/json",
-		}));
-		resources.push(json!({
-			"uri": format!("quercus://session/{}/project", entry.id),
-			"name": format!("{} project", entry.label),
-			"description": "Full project snapshot",
-			"mimeType": "application/json",
-		}));
-	}
-	json!({ "resources": resources })
-}
-
-fn read_resource(state: &mut ServerState, request: &Request) -> Result<Value, RpcError> {
-	let params = request
-		.params
-		.as_ref()
-		.ok_or_else(|| RpcError::invalid_params("resources/read requires params"))?;
-	let uri = params
-		.get("uri")
-		.and_then(Value::as_str)
-		.ok_or_else(|| RpcError::invalid_params("missing `uri`"))?;
-	let body = resource_body(state, uri)?;
-	Ok(json!({
-		"contents": [{
-			"uri": uri,
-			"mimeType": "application/json",
-			"text": serde_json::to_string(&body).unwrap_or_else(|_| "{}".to_string()),
-		}]
-	}))
-}
-
-fn resource_body(state: &ServerState, uri: &str) -> Result<Value, RpcError> {
+fn resource_body(state: &ServerState, uri: &str) -> Result<Value, McpError> {
 	if uri == "quercus://server/info" {
 		let sessions: Vec<Value> = state
 			.session_entries()
@@ -218,13 +199,13 @@ fn resource_body(state: &ServerState, uri: &str) -> Result<Value, RpcError> {
 	}
 	let rest = uri
 		.strip_prefix("quercus://session/")
-		.ok_or_else(|| RpcError::new(-32002, format!("resource not found: {uri}")))?;
+		.ok_or_else(|| McpError::invalid_params(format!("resource not found: {uri}"), None))?;
 	let (session_id, kind) = rest
 		.split_once('/')
-		.ok_or_else(|| RpcError::new(-32002, format!("resource not found: {uri}")))?;
+		.ok_or_else(|| McpError::invalid_params(format!("resource not found: {uri}"), None))?;
 	let entry = state
 		.entry(session_id)
-		.map_err(|error| RpcError::new(-32002, error))?;
+		.map_err(|error| McpError::invalid_params(error, None))?;
 	let snapshot = entry.session.snapshot();
 	match kind {
 		"timeline" => Ok(json!({
@@ -234,53 +215,54 @@ fn resource_body(state: &ServerState, uri: &str) -> Result<Value, RpcError> {
 			"sequences": snapshot.sequences.iter().map(convert::sequence_json).collect::<Vec<_>>(),
 		})),
 		"project" => Ok(convert::project_json(&snapshot)),
-		_ => Err(RpcError::new(-32002, format!("resource not found: {uri}"))),
+		_ => Err(McpError::invalid_params(
+			format!("resource not found: {uri}"),
+			None,
+		)),
 	}
 }
 
-fn list_prompts() -> Value {
-	json!({
-		"prompts": [
-			{
-				"name": "rough_cut",
-				"title": "Rough cut",
-				"description": "Plan and assemble a rough cut from one media file",
-				"arguments": [
-					{"name": "media", "description": "Path to the source media file", "required": true},
-					{"name": "brief", "description": "Editing brief or target duration", "required": false}
-				]
-			},
-			{
-				"name": "deliver_export",
-				"title": "Deliver an export",
-				"description": "Export the current timeline and verify the result",
-				"arguments": [
-					{"name": "filename", "description": "Output file path", "required": true}
-				]
-			}
-		]
-	})
+fn prompts() -> Vec<Prompt> {
+	vec![
+		Prompt::new(
+			"rough_cut",
+			Some("Plan and assemble a rough cut from one media file"),
+			Some(vec![
+				{
+					let mut argument = PromptArgument::new("media");
+					argument.description = Some("Path to the source media file".into());
+					argument.required = Some(true);
+					argument
+				},
+				{
+					let mut argument = PromptArgument::new("brief");
+					argument.description = Some("Editing brief or target duration".into());
+					argument.required = Some(false);
+					argument
+				},
+			]),
+		),
+		Prompt::new(
+			"deliver_export",
+			Some("Export the current timeline and verify the result"),
+			Some(vec![{
+				let mut argument = PromptArgument::new("filename");
+				argument.description = Some("Output file path".into());
+				argument.required = Some(true);
+				argument
+			}]),
+		),
+	]
 }
 
-fn get_prompt(request: &Request) -> Result<Value, RpcError> {
-	let params = request
-		.params
-		.as_ref()
-		.ok_or_else(|| RpcError::invalid_params("prompts/get requires params"))?;
-	let name = params
-		.get("name")
-		.and_then(Value::as_str)
-		.ok_or_else(|| RpcError::invalid_params("missing prompt `name`"))?;
-	let arguments = params
-		.get("arguments")
-		.cloned()
-		.unwrap_or_else(|| json!({}));
-	let text = match name {
+fn prompt_text(request: &GetPromptRequestParams) -> Result<String, McpError> {
+	let arguments = request.arguments.clone().unwrap_or_default();
+	let text = match request.name.as_ref() {
 		"rough_cut" => {
 			let media = arguments
 				.get("media")
 				.and_then(Value::as_str)
-				.ok_or_else(|| RpcError::invalid_params("rough_cut requires `media`"))?;
+				.ok_or_else(|| McpError::invalid_params("rough_cut requires `media`", None))?;
 			let brief = arguments
 				.get("brief")
 				.and_then(Value::as_str)
@@ -303,7 +285,9 @@ fn get_prompt(request: &Request) -> Result<Value, RpcError> {
 			let filename = arguments
 				.get("filename")
 				.and_then(Value::as_str)
-				.ok_or_else(|| RpcError::invalid_params("deliver_export requires `filename`"))?;
+				.ok_or_else(|| {
+					McpError::invalid_params("deliver_export requires `filename`", None)
+				})?;
 			format!(
 				"Export the current timeline to {filename}.\n\n\
 				1. Call timeline_get and confirm the sequence is not empty.\n\
@@ -314,29 +298,11 @@ fn get_prompt(request: &Request) -> Result<Value, RpcError> {
 			)
 		}
 		other => {
-			return Err(RpcError::invalid_params(format!(
-				"unknown prompt `{other}`"
-			)));
+			return Err(McpError::invalid_params(
+				format!("unknown prompt `{other}`"),
+				None,
+			));
 		}
 	};
-	Ok(json!({
-		"description": format!("Prompt `{name}`"),
-		"messages": [{
-			"role": "user",
-			"content": { "type": "text", "text": text },
-		}]
-	}))
-}
-
-fn set_log_level(state: &mut ServerState, request: &Request) -> Result<Value, RpcError> {
-	let params = request
-		.params
-		.as_ref()
-		.ok_or_else(|| RpcError::invalid_params("logging/setLevel requires params"))?;
-	let level = params
-		.get("level")
-		.and_then(Value::as_str)
-		.ok_or_else(|| RpcError::invalid_params("missing `level`"))?;
-	state.log_level = level.to_string();
-	Ok(json!({}))
+	Ok(text)
 }

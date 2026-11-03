@@ -2,7 +2,7 @@
 name = "oak-mcp"
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.88"
 description = "Model Context Protocol server exposing the Quercus video-editing engine (quercus-engine-rs) as tools"
 license = "GPL-3.0-or-later"
 repository = "https://github.com/OakVideoEditorCommunity/example-mcp"
@@ -20,6 +20,8 @@ serde_json = "1"
 base64 = "0.22"
 png = "0.17"
 thiserror = "2"
+rmcp = { version = "3.8", features = ["server", "transport-io", "macros"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 
 
 # The engine links FFmpeg statically and its dependency tree is large; a small

@@ -50,8 +50,6 @@ pub struct ServerState {
 	next_task: u64,
 	/// Negotiated MCP protocol version.
 	pub protocol_version: String,
-	/// MCP logging level requested by the client.
-	pub log_level: String,
 	/// Whether stderr diagnostics are enabled.
 	pub verbose: bool,
 	/// When the server started, for the info resource.
@@ -71,7 +69,6 @@ impl ServerState {
 			task_order: Vec::new(),
 			next_task: 0,
 			protocol_version: "2025-06-18".to_string(),
-			log_level: "info".to_string(),
 			verbose: false,
 			started: Instant::now(),
 			render_ready: false,
