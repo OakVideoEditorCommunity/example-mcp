@@ -51,11 +51,13 @@ bundle the intended tool sequence.
 
 ## Build it with DeepSeek Harness
 
-This repository ships a DeepSeek Harness skill at
-`.agents/skills/build-studio-mcp`. Open the repo in DSH and describe the
-studio's workflow in plain language: the agent sets up FFmpeg, writes the
-tools, builds, tests on real media, and hands back a packaged MCP server. It
-asks only about brand, OS/client, repetitive workflows, and delivery defaults.
+The studio skill lives in its own repository:
+[oak-and-quercus/mcp-skill](https://atomgit.com/oak-and-quercus/mcp-skill)
+(`git@atomgit.com:oak-and-quercus/mcp-skill.git`). Install it into your DSH
+skills directory, open this repo, and describe the studio's workflow in plain
+language: the agent sets up FFmpeg, writes the tools, builds, tests on real
+media, and hands back a packaged MCP server. It asks only about brand,
+OS/client, repetitive workflows, and delivery defaults.
 
 For a developer-oriented code walkthrough, see
 [docs/tutorial-customize-example-mcp.md](docs/tutorial-customize-example-mcp.md).
@@ -84,6 +86,21 @@ For a developer-oriented code walkthrough, see
 
 `FFMPEG_DIR` is not checked in. `scripts/build.sh` uses `.cache/ffmpeg`
 automatically; on Windows the PowerShell script sets it for you.
+
+### Mirrors
+
+If the GitHub clone or the BtbN download is slow from your network, use these
+mirrors (ask before switching in an automated flow):
+
+- example-mcp: `https://atomgit.com/oak-and-quercus/example-mcp.git`
+- FFmpeg 8.1 Windows zip:
+  `https://atomgit.com/oak-and-quercus/FFmpeg/releases/download/v8.1/ffmpeg-n8.1-latest-win64-gpl-shared-8.1.zip`
+- Cloudflare fallback (when AtomGit is flaky):
+  `https://ffmpeg.oakvideoeditor.org/ffmpeg/ffmpeg-n8.1-win64-gpl-shared-8.1-20261103.zip`
+
+The FFmpeg mirrors are Windows-only. AtomGit/Cloudflare may not publish an
+upstream checksum; `fetch-ffmpeg.ps1` requires `-AllowUnverified` in that case
+and prints the SHA-256.
 
 ## Build
 
@@ -119,6 +136,14 @@ verifies `checksums.sha256`, extracts it to `.cache\ffmpeg`, and sets
 `FFMPEG_DIR`, `PKG_CONFIG_PATH`, `PATH`, `OCIO_RS_ENABLE_REAL=1`,
 `OCIO_RS_LINK=static`, `CC=cl`, `CXX=cl`. This mirrors Quercus' Windows CI.
 
+If GitHub is slow or blocked, switch only after asking:
+
+```powershell
+. .\scripts\fetch-ffmpeg.ps1 -Source AtomGit -AllowUnverified
+# AtomGit flaky?
+. .\scripts\fetch-ffmpeg.ps1 -Source Cloudflare -AllowUnverified
+```
+
 ### Manual FFmpeg setup (without the scripts)
 
 **Windows.** Download the archive and checksums yourself:
@@ -126,6 +151,9 @@ verifies `checksums.sha256`, extracts it to `.cache\ffmpeg`, and sets
 ```powershell
 $base = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest"
 $asset = "ffmpeg-n8.1-latest-win64-gpl-shared-8.1.zip"
+# Mirror if GitHub is slow:
+#   https://atomgit.com/oak-and-quercus/FFmpeg/releases/download/v8.1/$asset
+#   https://ffmpeg.oakvideoeditor.org/ffmpeg/ffmpeg-n8.1-win64-gpl-shared-8.1-20261103.zip
 Invoke-WebRequest "$base/checksums.sha256" -OutFile "$env:TEMP\checksums.sha256"
 # Find the line for $asset in checksums.sha256 and note its SHA-256.
 Invoke-WebRequest "$base/$asset" -OutFile "$env:TEMP\$asset"
@@ -205,7 +233,6 @@ task_wait {task: "t1", timeout_ms: 120000}
 | `scripts/ffmpeg/` | Vendored Quercus FFmpeg build scripts (Linux/macOS) |
 | `scripts/fetch-ffmpeg.ps1` | Windows BtbN FFmpeg downloader (checksum-verified) |
 | `scripts/install-deps.sh` | Build tools / system libraries (Linux/macOS) |
-| `.agents/skills/build-studio-mcp/` | DeepSeek Harness skill that builds a studio MCP from a plain-language brief |
 
 The process is single-threaded: requests are handled in order, engine tasks run
 on Quercus' own workers, and `task_wait` blocks only the calling request.

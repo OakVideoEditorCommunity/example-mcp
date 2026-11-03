@@ -39,7 +39,9 @@ MCP 协议层使用官方 [`rmcp`](https://crates.io/crates/rmcp) SDK；`src/too
 
 ## 用 DeepSeek Harness 直接生成
 
-仓库自带一个 DeepSeek Harness Skill：`.agents/skills/build-studio-mcp`。
+工作室 Skill 在独立仓库：
+[oak-and-quercus/mcp-skill](https://atomgit.com/oak-and-quercus/mcp-skill)
+（`git@atomgit.com:oak-and-quercus/mcp-skill.git`）。装到 DSH 的 Skill 目录后，
 在 DSH 里打开这个仓库，用自然语言描述工作室的流程即可：Agent 会负责 FFmpeg 环境、
 写工具、构建、用真实素材测试，最后交付打包好的 MCP 服务。它只会问品牌、操作系统/客户端、
 重复性工作流和交付默认值，不会让工作室的人配环境或写代码。
@@ -65,6 +67,19 @@ MCP 协议层使用官方 [`rmcp`](https://crates.io/crates/rmcp) SDK；`src/too
   如果一定要用 bundled 版本，请补上缺失的 include（例如 `CXXFLAGS="-include cstdint"`）并取消 `OCIO_INSTALL_DIR`。
 
 `FFMPEG_DIR` 不写进仓库。`scripts/build.sh` 会自动使用 `.cache/ffmpeg`；Windows 脚本会自动设置环境变量。
+
+### 镜像
+
+GitHub 克隆或 BtbN 下载慢时，可以用镜像（自动化流程里先询问再切换）：
+
+- example-mcp：`https://atomgit.com/oak-and-quercus/example-mcp.git`
+- FFmpeg 8.1 Windows 包：
+  `https://atomgit.com/oak-and-quercus/FFmpeg/releases/download/v8.1/ffmpeg-n8.1-latest-win64-gpl-shared-8.1.zip`
+- Cloudflare 备用（AtomGit 抽风时）：
+  `https://ffmpeg.oakvideoeditor.org/ffmpeg/ffmpeg-n8.1-win64-gpl-shared-8.1-20261103.zip`
+
+FFmpeg 镜像只用于 Windows。AtomGit/Cloudflare 可能没有上游 checksum；
+`fetch-ffmpeg.ps1` 此时要求加 `-AllowUnverified`，并打印 SHA-256。
 
 ## 构建
 
@@ -96,6 +111,14 @@ cargo build --release
 `.cache\ffmpeg`，并设置 `FFMPEG_DIR`、`PKG_CONFIG_PATH`、`PATH`、`OCIO_RS_ENABLE_REAL=1`、
 `OCIO_RS_LINK=static`、`CC=cl`、`CXX=cl`。逻辑与 Quercus 的 Windows CI 一致。
 
+GitHub 慢或被墙时，先询问用户，再切换：
+
+```powershell
+. .\scripts\fetch-ffmpeg.ps1 -Source AtomGit -AllowUnverified
+# AtomGit 也不稳定时
+. .\scripts\fetch-ffmpeg.ps1 -Source Cloudflare -AllowUnverified
+```
+
 ### 不用脚本时的手工步骤
 
 **Windows。** 自己下载并解压：
@@ -103,6 +126,9 @@ cargo build --release
 ```powershell
 $base = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest"
 $asset = "ffmpeg-n8.1-latest-win64-gpl-shared-8.1.zip"
+# GitHub 慢时可用镜像：
+#   https://atomgit.com/oak-and-quercus/FFmpeg/releases/download/v8.1/$asset
+#   https://ffmpeg.oakvideoeditor.org/ffmpeg/ffmpeg-n8.1-win64-gpl-shared-8.1-20261103.zip
 Invoke-WebRequest "$base/checksums.sha256" -OutFile "$env:TEMP\checksums.sha256"
 # 在 checksums.sha256 里找到 $asset 那一行，记下 SHA-256
 Invoke-WebRequest "$base/$asset" -OutFile "$env:TEMP\$asset"
@@ -177,7 +203,6 @@ task_wait {task: "t1", timeout_ms: 120000}
 | `scripts/ffmpeg/` | 从 Quercus 拷贝的 FFmpeg 构建脚本（Linux/macOS） |
 | `scripts/fetch-ffmpeg.ps1` | Windows BtbN FFmpeg 下载脚本（校验 SHA-256） |
 | `scripts/install-deps.sh` | 构建工具/系统库（Linux/macOS） |
-| `.agents/skills/build-studio-mcp/` | 用自然语言生成工作室 MCP 的 DeepSeek Harness Skill |
 
 进程是单线程处理请求：请求按顺序处理，引擎任务跑在 Quercus 自己的 worker 上，
 `task_wait` 只阻塞当前请求。

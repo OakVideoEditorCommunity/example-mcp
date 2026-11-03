@@ -6,8 +6,9 @@
 >
 > 代码与 example-mcp 相同，许可为 **GPL-3.0-or-later**。
 >
-> 如果你只是想让 DeepSeek Harness 直接生成，不需要读这篇教程：使用仓库里的
-> `.agents/skills/build-studio-mcp` Skill，用自然语言描述工作室流程即可。
+> 如果你只是想让 DeepSeek Harness 直接生成，不需要读这篇教程：安装独立仓库
+> [oak-and-quercus/mcp-skill](https://atomgit.com/oak-and-quercus/mcp-skill) 的
+> `build-studio-mcp` Skill，用自然语言描述工作室流程即可。
 
 ---
 
