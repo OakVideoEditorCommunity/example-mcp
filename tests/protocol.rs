@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 //! Protocol-level integration test: spawn the real server and drive it over
 //! stdio, exactly as an MCP client would.
 

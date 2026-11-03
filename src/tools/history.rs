@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 //! Undo/redo tools.
 //!
 //! The engine's undo stack is global to the process (by design), so undo/redo

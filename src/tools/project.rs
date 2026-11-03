@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 //! Project, session, sequence, track, and marker tools.
 
 use quercus_engine_rs::edit::EditCommand;

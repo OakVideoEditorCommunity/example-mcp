@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 //! Process-wide server state: editor sessions and asynchronous tasks.
 
 use std::collections::HashMap;

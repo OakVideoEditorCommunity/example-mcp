@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 //! Sidecar persistence for engine data the `.ove` serializer drops.
 //!
 //! The published engine's project serializer writes the graph (nodes, clips,

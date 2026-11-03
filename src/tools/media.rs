@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 //! Media import and project-bin tools.
 
 use quercus_engine_rs::edit::EditCommand;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 //! Conversions between Quercus SDK DTOs and the JSON shapes the MCP tools use.
 //!
 //! Time conventions:

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 //! PNG encoding for rendered preview frames.
 
 /// Encodes tight `F32 RGBA` pixels as an 8-bit sRGB-ish PNG.

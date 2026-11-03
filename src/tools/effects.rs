@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 //! Effect-chain and parameter tools.
 
 use quercus_engine_rs::edit::EditCommand;

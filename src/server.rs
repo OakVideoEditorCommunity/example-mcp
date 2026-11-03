@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 //! MCP server built on the official `rmcp` SDK.
 //!
 //! The MCP transport, lifecycle and JSON-RPC plumbing come from `rmcp`; this

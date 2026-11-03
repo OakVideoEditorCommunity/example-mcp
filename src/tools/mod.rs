@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 //! MCP tool registry, argument parsing, and reply shaping.
 //!
 //! Tools are plain functions grouped by domain. Each tool declares its JSON

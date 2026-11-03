@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 //! Timeline clip tools: placement, trimming, moving, splitting, transitions.
 //!
 //! All times are seconds. The engine's semantic edit commands use integer frame

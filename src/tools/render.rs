@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 //! Preview, export, task polling, and OTIO interchange tools.
 
 use std::time::{Duration, Instant};

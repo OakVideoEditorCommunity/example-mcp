@@ -47,6 +47,12 @@ bundle the intended tool sequence.
 - Export is asynchronous: `export_start` returns a task id, then poll
   `task_status` or block on `task_wait`.
 
+## Customizing
+
+See [docs/tutorial-customize-example-mcp.md](docs/tutorial-customize-example-mcp.md)
+for a step-by-step guide: rename the server, add `studio_info` and
+`import_folder` tools, add prompts, test, and package it for a studio.
+
 ## Requirements
 
 - Rust 1.88+ (edition 2024; `rmcp` requires 1.88).
@@ -203,3 +209,5 @@ ones it can:
 ## License
 
 GPL-3.0-or-later, matching `quercus-engine-rs` and the Quercus engine.
+Customized servers that you distribute must remain GPL-3.0-or-later; the
+source files carry SPDX headers.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 //! Link-time setup for the `oak-mcp` binary.
 //!
 //! `quercus-engine-rs` links the engine cdylib (`libquercus_engine.so`) and its

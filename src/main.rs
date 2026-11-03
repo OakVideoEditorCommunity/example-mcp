@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 //! `oak-mcp`: a Model Context Protocol server for the Quercus video engine.
 //!
 //! Transport and MCP lifecycle are provided by the official `rmcp` SDK
