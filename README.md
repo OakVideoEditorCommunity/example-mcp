@@ -1,3 +1,5 @@
+[English](README.md) | [简体中文](README.zh-CN.md)
+
 # oak-mcp
 
 A [Model Context Protocol](https://modelcontextprotocol.io) server that exposes the
@@ -47,49 +49,110 @@ bundle the intended tool sequence.
 - Export is asynchronous: `export_start` returns a task id, then poll
   `task_status` or block on `task_wait`.
 
-## Customizing
+## Build it with DeepSeek Harness
 
-See [docs/tutorial-customize-example-mcp.md](docs/tutorial-customize-example-mcp.md)
-for a step-by-step guide: rename the server, add `studio_info` and
-`import_folder` tools, add prompts, test, and package it for a studio.
+This repository ships a DeepSeek Harness skill at
+`.agents/skills/build-studio-mcp`. Open the repo in DSH and describe the
+studio's workflow in plain language: the agent sets up FFmpeg, writes the
+tools, builds, tests on real media, and hands back a packaged MCP server. It
+asks only about brand, OS/client, repetitive workflows, and delivery defaults.
+
+For a developer-oriented code walkthrough, see
+[docs/tutorial-customize-example-mcp.md](docs/tutorial-customize-example-mcp.md).
 
 ## Requirements
 
 - Rust 1.88+ (edition 2024; `rmcp` requires 1.88).
-- The **project FFmpeg 8.1 build** that Quercus pins: a static install prefix
-  with `lib/pkgconfig`. A distro/system FFmpeg is not supported. Build it once
-  in a checkout of `quercus-engine` with
-  `tooling/install-deps.sh` + `tooling/ffmpeg/build-ffmpeg.sh` and point
-  `FFMPEG_DIR` at `.cache/ffmpeg`.
+- **FFmpeg 8.1**, the project build Quercus pins (static prefix + `lib/pkgconfig`).
+  A distro/system FFmpeg is not supported. The Quercus build scripts are
+  vendored under `scripts/`, so you do **not** need a Quercus checkout:
+  - **Linux/macOS**: run `./scripts/install-deps.sh` once (build tools + system
+    libraries; may prompt for sudo/Homebrew), then
+    `./scripts/ffmpeg/build-ffmpeg.sh`. The prefix is `.cache/ffmpeg`.
+  - **Windows**: run `. .\scripts\fetch-ffmpeg.ps1` (note the leading dot).
+    It downloads the same BtbN/FFmpeg-Builds archive that Quercus CI uses,
+    verifies its SHA-256 checksum, and unpacks it into `.cache\ffmpeg`.
 - **OpenColorIO 2.x** development files (`libOpenColorIO.so` + headers).
   `quercus-core 0.5.2` and `quercus-render 0.5.2` enable ocio-rs 0.2's
   `bundled` feature, whose vendored yaml-cpp does not compile with GCC >= 13
-  (missing `#include <cstdint>`). This repository therefore links the system
-  OCIO: `.cargo/config.toml` sets `OCIO_INSTALL_DIR=/usr` and
-  `OCIO_RS_LINK=dynamic` (Linux defaults). Override them for other prefixes,
-  e.g. `OCIO_INSTALL_DIR=/opt/homebrew/opt/open-colorio` on macOS.
+  (missing `#include <cstdint>`). This repository links the system OCIO:
+  `scripts/build.sh` sets `OCIO_INSTALL_DIR=/usr` and `OCIO_RS_LINK=dynamic`
+  on Linux; the Windows script sets the static/real path used by CI.
+  On macOS export `OCIO_INSTALL_DIR="$(brew --prefix opencolorio)"`.
   If you must build the bundled copy instead, provide the missing includes, e.g.
   `CXXFLAGS="-include cstdint"`, and unset `OCIO_INSTALL_DIR`.
 
-`FFMPEG_DIR` is not checked in (Cargo's `[env]` cannot expand shell variables);
-export it before building, or use `scripts/build.sh`.
+`FFMPEG_DIR` is not checked in. `scripts/build.sh` uses `.cache/ffmpeg`
+automatically; on Windows the PowerShell script sets it for you.
 
 ## Build
 
+### Linux / macOS
+
 ```sh
-# Quercus' pinned static FFmpeg (see above).
-export FFMPEG_DIR=/path/to/quercus-engine/.cache/ffmpeg
-
-# Linux defaults for the system-OCIO workaround (override on other prefixes).
-export OCIO_INSTALL_DIR=/usr
-export OCIO_RS_LINK=dynamic
-
-cargo build            # debug, as used by the tests below
-cargo build --release  # production binary
-./target/debug/oak-mcp --check   # engine loads, sequence + render manager work
+./scripts/install-deps.sh           # once; build tools + system libs (sudo/brew)
+./scripts/ffmpeg/build-ffmpeg.sh    # once; pinned FFmpeg 8.1 -> .cache/ffmpeg
+./scripts/build.sh build --release
+./target/release/oak-mcp --check    # engine loads, sequence + render manager work
 ```
 
-`scripts/build.sh` wraps those exports: `./scripts/build.sh build --release`.
+`scripts/build.sh` sets the OCIO environment, uses `.cache/ffmpeg`, and forwards
+the cargo arguments (`build`, `test`, ...). Override `FFMPEG_DIR` or
+`OCIO_INSTALL_DIR` in the environment if your prefix differs.
+
+### Windows (PowerShell)
+
+Requirements: MSVC C++ Build Tools, Rust
+`stable-x86_64-pc-windows-msvc`, and Git for Windows (for `link.exe` and the
+usual toolchain).
+
+```powershell
+. .\scripts\fetch-ffmpeg.ps1       # the leading dot keeps the env vars
+cargo build --release
+.\target\release\oak-mcp.exe --check
+```
+
+The script downloads
+`ffmpeg-n8.1-latest-win64-gpl-shared-8.1.zip` from
+[BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds/releases/tag/latest),
+verifies `checksums.sha256`, extracts it to `.cache\ffmpeg`, and sets
+`FFMPEG_DIR`, `PKG_CONFIG_PATH`, `PATH`, `OCIO_RS_ENABLE_REAL=1`,
+`OCIO_RS_LINK=static`, `CC=cl`, `CXX=cl`. This mirrors Quercus' Windows CI.
+
+### Manual FFmpeg setup (without the scripts)
+
+**Windows.** Download the archive and checksums yourself:
+
+```powershell
+$base = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest"
+$asset = "ffmpeg-n8.1-latest-win64-gpl-shared-8.1.zip"
+Invoke-WebRequest "$base/checksums.sha256" -OutFile "$env:TEMP\checksums.sha256"
+# Find the line for $asset in checksums.sha256 and note its SHA-256.
+Invoke-WebRequest "$base/$asset" -OutFile "$env:TEMP\$asset"
+(Get-FileHash "$env:TEMP\$asset" -Algorithm SHA256).Hash  # compare
+Expand-Archive "$env:TEMP\$asset" -DestinationPath .cache\ffmpeg-extract -Force
+# Move the single top-level folder out of ffmpeg-extract:
+Move-Item .cache\ffmpeg-extract\ffmpeg-n8.1-latest-win64-gpl-shared-8.1 .cache\ffmpeg
+$env:FFMPEG_DIR = "$PWD\.cache\ffmpeg"
+$env:PKG_CONFIG_PATH = "$PWD\.cache\ffmpeg\lib\pkgconfig"
+$env:PATH = "$PWD\.cache\ffmpeg\bin;$env:PATH"
+$env:OCIO_RS_ENABLE_REAL = "1"
+$env:OCIO_RS_LINK = "static"
+$env:CC = "cl"
+$env:CXX = "cl"
+cargo build --release
+```
+
+If the top-level folder inside the archive has a different name, use that name
+in `Move-Item`.
+
+**Linux/macOS.** Install the build tools (`cmake`, `nasm`, `pkg-config`,
+`freetype`, `fontconfig`, plus a C/C++ toolchain), then reproduce the pinned
+build with the same steps as `scripts/ffmpeg/build-ffmpeg.sh`: build the codec
+libraries into `.cache/ffmpeg`, configure FFmpeg 8.1 with
+`--prefix=$PWD/.cache/ffmpeg --pkg-config-flags=--static`, and install it there.
+Using the vendored scripts is strongly recommended because the codec set and
+flags are pinned.
 
 If `$CARGO_HOME` is not writable (sandboxed CI), use a project-local one:
 
@@ -139,6 +202,10 @@ task_wait {task: "t1", timeout_ms: 120000}
 | `src/convert.rs` | DTO → JSON, seconds ↔ frame timestamps |
 | `src/image.rs` | F32 RGBA → PNG |
 | `src/sidecar.rs` | Format/marker persistence the `.ove` serializer drops |
+| `scripts/ffmpeg/` | Vendored Quercus FFmpeg build scripts (Linux/macOS) |
+| `scripts/fetch-ffmpeg.ps1` | Windows BtbN FFmpeg downloader (checksum-verified) |
+| `scripts/install-deps.sh` | Build tools / system libraries (Linux/macOS) |
+| `.agents/skills/build-studio-mcp/` | DeepSeek Harness skill that builds a studio MCP from a plain-language brief |
 
 The process is single-threaded: requests are handled in order, engine tasks run
 on Quercus' own workers, and `task_wait` blocks only the calling request.
@@ -154,7 +221,7 @@ Handlers parse arguments through `Args` and return
 ## Testing
 
 ```sh
-cargo test                                   # unit + protocol integration tests
+./scripts/build.sh test                      # unit + protocol integration tests
 python3 scripts/e2e_smoke.py                 # new -> import -> place -> preview -> export
 python3 scripts/e2e_edit.py                  # effects, keyframes, split/trim, save/reopen,
                                              # markers, range export, resources, prompts

@@ -6,9 +6,15 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 if [[ -z "${FFMPEG_DIR:-}" ]]; then
-  echo "FFMPEG_DIR is not set. Point it at Quercus' pinned FFmpeg 8.1 prefix:" >&2
-  echo "  export FFMPEG_DIR=/path/to/quercus-engine/.cache/ffmpeg" >&2
-  exit 1
+  if [[ -d "$PWD/.cache/ffmpeg" ]]; then
+    export FFMPEG_DIR="$PWD/.cache/ffmpeg"
+  else
+    echo "FFMPEG_DIR is not set and .cache/ffmpeg does not exist." >&2
+    echo "Build it first:" >&2
+    echo "  ./scripts/ffmpeg/build-ffmpeg.sh   # Linux/macOS" >&2
+    echo "  . .\scripts\fetch-ffmpeg.ps1      # Windows (PowerShell)" >&2
+    exit 1
+  fi
 fi
 
 export OCIO_INSTALL_DIR="${OCIO_INSTALL_DIR:-/usr}"

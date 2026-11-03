@@ -5,6 +5,9 @@
 > 读完你会得到一个可以分发的 `my-studio-mcp`：保留 example-mcp 的全部剪辑工具，加上你自己的工作室工具、提示词和品牌。
 >
 > 代码与 example-mcp 相同，许可为 **GPL-3.0-or-later**。
+>
+> 如果你只是想让 DeepSeek Harness 直接生成，不需要读这篇教程：使用仓库里的
+> `.agents/skills/build-studio-mcp` Skill，用自然语言描述工作室流程即可。
 
 ---
 
@@ -40,7 +43,8 @@ git clone https://github.com/OakVideoEditorCommunity/example-mcp.git my-studio-m
 cd my-studio-mcp
 ```
 
-如果你在 GitHub 上 fork，把上面的 URL 换成你自己的仓库。
+如果你在 GitHub 上 fork，把上面的 URL 换成你自己的仓库。**整个仓库（尤其 `scripts/`）要一起拷走**：
+构建 FFmpeg、Windows 预构建下载和 e2e 测试都依赖它。
 
 ### 1.2 依赖
 
@@ -48,21 +52,40 @@ cd my-studio-mcp
 - **Quercus 固定的 FFmpeg 8.1 静态前缀**（系统 FFmpeg 不行）。
 - **OpenColorIO 2.x** 开发文件。
 
-在 Quercus 的 checkout 里构建 FFmpeg 前缀（只做一次）：
+仓库已经带上 Quercus 的 FFmpeg 构建脚本，不需要再准备 Quercus checkout。
+
+**Linux / macOS**（只做一次）：
 
 ```bash
-cd /path/to/quercus-engine
-tooling/install-deps.sh
-tooling/ffmpeg/build-ffmpeg.sh
-# 产物在 /path/to/quercus-engine/.cache/ffmpeg
+./scripts/install-deps.sh           # 构建工具 + 系统库，可能要求 sudo/brew
+./scripts/ffmpeg/build-ffmpeg.sh    # 固定 FFmpeg 8.1 -> .cache/ffmpeg
 ```
+
+**Windows**（只做一次，PowerShell）：
+
+```powershell
+. .\scripts\fetch-ffmpeg.ps1       # 从 BtbN 下载预构建包并校验 SHA-256
+```
+
+它会把 FFmpeg 解压到 `.cache\ffmpeg`，并设置 `FFMPEG_DIR`、`PKG_CONFIG_PATH`、
+`OCIO_RS_ENABLE_REAL`、`OCIO_RS_LINK=static`、`CC/CXX=cl`。细节和手工步骤见 README 的
+“Windows（PowerShell）”和“不用脚本时的手工步骤”。
 
 ### 1.3 第一次构建
 
+**Linux / macOS：**
+
 ```bash
-export FFMPEG_DIR=/path/to/quercus-engine/.cache/ffmpeg
-./scripts/build.sh build          # 等价于带 OCIO 环境变量的 cargo build
+./scripts/build.sh build          # 自动用 .cache/ffmpeg，并带 OCIO 环境变量
 ./target/debug/oak-mcp --check
+```
+
+**Windows：**
+
+```powershell
+. .\scripts\fetch-ffmpeg.ps1
+cargo build --release
+.\target\release\oak-mcp.exe --check
 ```
 
 `--check` 会打印 JSON：引擎能创建 session、创建 sequence、初始化渲染管理器、加载 50 个工具。失败时它返回非 0，先解决再往下走。
@@ -583,7 +606,7 @@ fn studio_info_is_listed_and_callable() {
 
 | 现象 | 原因 | 处理 |
 |---|---|---|
-| 构建时 `quercus-ffmpeg-link` panic | 没设 `FFMPEG_DIR` | `export FFMPEG_DIR=/path/to/quercus-engine/.cache/ffmpeg` |
+| 构建时 `quercus-ffmpeg-link` panic | 没设 `FFMPEG_DIR` | 先跑 `./scripts/ffmpeg/build-ffmpeg.sh`（Windows 用 `fetch-ffmpeg.ps1`），再 `./scripts/build.sh build` |
 | `yaml-cpp` / `cstdint` 编译错 | ocio-sys bundled 与 GCC 不兼容 | 用系统 OCIO：`OCIO_INSTALL_DIR=/usr OCIO_RS_LINK=dynamic` |
 | 运行时报 `libquercus_engine.so: cannot open` | dylib 不在 loader 路径 | 在 `target/debug` 下运行；打包时把 dylib 放在二进制旁 |
 | 客户端连上就卡住/乱码 | 有代码往 stdout 打印 | 所有日志用 `eprintln!`；stdout 只给 rmcp |

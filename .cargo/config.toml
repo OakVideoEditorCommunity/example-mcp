@@ -1,12 +1,13 @@
 # Quercus links the pinned FFmpeg 8.1 build statically; a distro/system FFmpeg
-# is not supported. Cargo's [env] cannot expand shell variables, so export it
-# before building (or use `scripts/build.sh`):
+# is not supported. Build it with the vendored scripts:
 #
-#   export FFMPEG_DIR=/path/to/quercus-engine/.cache/ffmpeg
+#   Linux/macOS: ./scripts/ffmpeg/build-ffmpeg.sh
+#   Windows:     . .\scripts\fetch-ffmpeg.ps1
 #
-# ocio-sys 0.2.1's bundled yaml-cpp does not compile with GCC >= 13
-# (`#include <cstdint>` is missing). Link the system OpenColorIO 2.x instead;
-# these are Linux defaults, override them for other prefixes.
-[env]
-OCIO_INSTALL_DIR = "/usr"
-OCIO_RS_LINK = "dynamic"
+# FFMPEG_DIR is intentionally not set here: Cargo's [env] cannot expand shell
+# variables, and Windows uses a different prefix layout.
+#
+# OpenColorIO: ocio-sys 0.2.1's bundled yaml-cpp does not compile with GCC >= 13
+# (`#include <cstdint>` is missing). `scripts/build.sh` links the system OCIO
+# on Linux; the Windows script selects the static OCIO path used by CI.
+# macOS: export OCIO_INSTALL_DIR="$(brew --prefix opencolorio)".

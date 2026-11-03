@@ -4,3 +4,4 @@
 __pycache__/
 repro/issue4-hang/media
 .idea/
+/.cache/
