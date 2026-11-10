@@ -65,7 +65,7 @@ For a developer-oriented code walkthrough, see
 ## Requirements
 
 - Rust 1.88+ (edition 2024; `rmcp` requires 1.88).
-- **FFmpeg 8.1**, the project build Quercus pins (static prefix + `lib/pkgconfig`).
+- **FFmpeg 9.0**, the project build Quercus pins (static prefix + `lib/pkgconfig`).
   A distro/system FFmpeg is not supported. The Quercus build scripts are
   vendored under `scripts/`, so you do **not** need a Quercus checkout:
   - **Linux/macOS**: run `./scripts/install-deps.sh` once (build tools + system
@@ -75,7 +75,7 @@ For a developer-oriented code walkthrough, see
     It downloads the same BtbN/FFmpeg-Builds archive that Quercus CI uses,
     verifies its SHA-256 checksum, and unpacks it into `.cache\ffmpeg`.
 - **OpenColorIO 2.x** development files (`libOpenColorIO.so` + headers).
-  `quercus-core 0.5.2` and `quercus-render 0.5.2` enable ocio-rs 0.2's
+  `quercus-core 0.7.0` and `quercus-render 0.7.0` use ocio-rs 0.3, whose
   `bundled` feature, whose vendored yaml-cpp does not compile with GCC >= 13
   (missing `#include <cstdint>`). This repository links the system OCIO:
   `scripts/build.sh` sets `OCIO_INSTALL_DIR=/usr` and `OCIO_RS_LINK=dynamic`
@@ -93,10 +93,9 @@ If the GitHub clone or the BtbN download is slow from your network, use these
 mirrors (ask before switching in an automated flow):
 
 - example-mcp: `https://atomgit.com/oak-and-quercus/example-mcp.git`
-- FFmpeg 8.1 Windows zip:
-  `https://atomgit.com/oak-and-quercus/FFmpeg/releases/download/v8.1/ffmpeg-n8.1-latest-win64-gpl-shared-8.1.zip`
-- Cloudflare fallback (when AtomGit is flaky):
-  `https://ffmpeg.oakvideoeditor.org/ffmpeg/ffmpeg-n8.1-win64-gpl-shared-8.1-20261103.zip`
+- FFmpeg 9.0 Windows zip: no mirror is published yet (AtomGit currently carries
+  only the 8.1 archive). Use the primary BtbN source, or build from source with
+  `./scripts/ffmpeg/build-ffmpeg.sh` on Linux/macOS, until a v9.0 mirror lands.
 
 The FFmpeg mirrors are Windows-only. AtomGit/Cloudflare may not publish an
 upstream checksum; `fetch-ffmpeg.ps1` requires `-AllowUnverified` in that case
@@ -108,7 +107,7 @@ and prints the SHA-256.
 
 ```sh
 ./scripts/install-deps.sh           # once; build tools + system libs (sudo/brew)
-./scripts/ffmpeg/build-ffmpeg.sh    # once; pinned FFmpeg 8.1 -> .cache/ffmpeg
+./scripts/ffmpeg/build-ffmpeg.sh    # once; pinned FFmpeg 9.0 -> .cache/ffmpeg
 ./scripts/build.sh build --release
 ./target/release/oak-mcp --check    # engine loads, sequence + render manager work
 ```
@@ -130,7 +129,7 @@ cargo build --release
 ```
 
 The script downloads
-`ffmpeg-n8.1-latest-win64-gpl-shared-8.1.zip` from
+`ffmpeg-n9.0-latest-win64-gpl-shared-9.0.zip` from
 [BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds/releases/tag/latest),
 verifies `checksums.sha256`, extracts it to `.cache\ffmpeg`, and sets
 `FFMPEG_DIR`, `PKG_CONFIG_PATH`, `PATH`, `OCIO_RS_ENABLE_REAL=1`,
@@ -150,17 +149,15 @@ If GitHub is slow or blocked, switch only after asking:
 
 ```powershell
 $base = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest"
-$asset = "ffmpeg-n8.1-latest-win64-gpl-shared-8.1.zip"
-# Mirror if GitHub is slow:
-#   https://atomgit.com/oak-and-quercus/FFmpeg/releases/download/v8.1/$asset
-#   https://ffmpeg.oakvideoeditor.org/ffmpeg/ffmpeg-n8.1-win64-gpl-shared-8.1-20261103.zip
+$asset = "ffmpeg-n9.0-latest-win64-gpl-shared-9.0.zip"
+# Mirrors for the 9.0 archive are not published yet; use the primary source.
 Invoke-WebRequest "$base/checksums.sha256" -OutFile "$env:TEMP\checksums.sha256"
 # Find the line for $asset in checksums.sha256 and note its SHA-256.
 Invoke-WebRequest "$base/$asset" -OutFile "$env:TEMP\$asset"
 (Get-FileHash "$env:TEMP\$asset" -Algorithm SHA256).Hash  # compare
 Expand-Archive "$env:TEMP\$asset" -DestinationPath .cache\ffmpeg-extract -Force
 # Move the single top-level folder out of ffmpeg-extract:
-Move-Item .cache\ffmpeg-extract\ffmpeg-n8.1-latest-win64-gpl-shared-8.1 .cache\ffmpeg
+Move-Item .cache\ffmpeg-extract\ffmpeg-n9.0-latest-win64-gpl-shared-9.0 .cache\ffmpeg
 $env:FFMPEG_DIR = "$PWD\.cache\ffmpeg"
 $env:PKG_CONFIG_PATH = "$PWD\.cache\ffmpeg\lib\pkgconfig"
 $env:PATH = "$PWD\.cache\ffmpeg\bin;$env:PATH"
@@ -177,7 +174,7 @@ in `Move-Item`.
 **Linux/macOS.** Install the build tools (`cmake`, `nasm`, `pkg-config`,
 `freetype`, `fontconfig`, plus a C/C++ toolchain), then reproduce the pinned
 build with the same steps as `scripts/ffmpeg/build-ffmpeg.sh`: build the codec
-libraries into `.cache/ffmpeg`, configure FFmpeg 8.1 with
+libraries into `.cache/ffmpeg`, configure FFmpeg 9.0 with
 `--prefix=$PWD/.cache/ffmpeg --pkg-config-flags=--static`, and install it there.
 Using the vendored scripts is strongly recommended because the codec set and
 flags are pinned.

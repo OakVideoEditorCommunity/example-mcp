@@ -50,7 +50,7 @@ cd my-studio-mcp
 ### 1.2 依赖
 
 - **Rust 1.88+**（`rmcp 3.8` 的最低要求）。
-- **Quercus 固定的 FFmpeg 8.1 静态前缀**（系统 FFmpeg 不行）。
+- **Quercus 固定的 FFmpeg 9.0 静态前缀**（系统 FFmpeg 不行）。
 - **OpenColorIO 2.x** 开发文件。
 
 仓库已经带上 Quercus 的 FFmpeg 构建脚本，不需要再准备 Quercus checkout。
@@ -59,7 +59,7 @@ cd my-studio-mcp
 
 ```bash
 ./scripts/install-deps.sh           # 构建工具 + 系统库，可能要求 sudo/brew
-./scripts/ffmpeg/build-ffmpeg.sh    # 固定 FFmpeg 8.1 -> .cache/ffmpeg
+./scripts/ffmpeg/build-ffmpeg.sh    # 固定 FFmpeg 9.0 -> .cache/ffmpeg
 ```
 
 **Windows**（只做一次，PowerShell）：

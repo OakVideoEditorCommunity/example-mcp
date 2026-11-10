@@ -1,4 +1,4 @@
-# Quercus links the pinned FFmpeg 8.1 build statically; a distro/system FFmpeg
+# Quercus links the pinned FFmpeg 9.0 build statically; a distro/system FFmpeg
 # is not supported. Build it with the vendored scripts:
 #
 #   Linux/macOS: ./scripts/ffmpeg/build-ffmpeg.sh

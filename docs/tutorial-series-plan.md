@@ -21,7 +21,7 @@
 - Rust：能读写 `serde`、`Result`、`Arc/Mutex` 级别代码；不要求 async。
 - 视频：知道时间线/片段/轨道/转场/关键帧即可。
 - 环境：Linux x86-64（macOS/Windows 作为附录），Rust 1.85+。
-- 需要提前准备：Quercus 的 pinned FFmpeg 8.1 静态前缀、OpenColorIO 2.x。
+- 需要提前准备：Quercus 的 pinned FFmpeg 9.0 静态前缀、OpenColorIO 2.x。
 - 不需要：CUDA、GPU、FFmpeg 源码、任何 MCP SDK。
 
 ## 3. 系列结构（6 部分 / 17 章）
@@ -75,7 +75,7 @@
 
 **02 环境与最小验证**
 - 目标：跑通引擎，不碰 MCP。
-- 内容：FFmpeg 8.1 pinned 构建与 `FFMPEG_DIR`；OCIO 2.x 与 ocio-sys bundled 的
+- 内容：FFmpeg 9.0 pinned 构建与 `FFMPEG_DIR`；OCIO 2.x 与 ocio-sys bundled 的
   GCC 问题（`OCIO_INSTALL_DIR=/usr`、`OCIO_RS_LINK=dynamic`）；`cargo build`；
   `--check` 创建 session/sequence；MCP 客户端（Claude Desktop/Inspector）配置。
 - 验收：`oak-mcp --check` 输出 `ok: true`、`render_manager: true`。

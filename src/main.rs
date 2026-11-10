@@ -85,7 +85,7 @@ OPTIONS:
 The server speaks MCP over stdio. Configure it in an MCP client with command
 `oak-mcp` and no arguments.
 
-The Quercus engine links the project FFmpeg 8.1 build statically and needs
+The Quercus engine links the project FFmpeg 9.0 build statically and needs
 OpenColorIO 2.x at build time; see README.md for setup.",
 		env!("CARGO_PKG_VERSION")
 	);

@@ -1,7 +1,7 @@
 # oak-mcp / Quercus 能力缺口分析
 
 对照对象：`media/shuili/参考成片.mp4`（38.17s、720p30、H.264+AAC、中文字幕）
-与 `oak-mcp 0.1.0`（依赖 crates.io `quercus-engine-rs 0.5.7` / `quercus-engine 0.5.3` /
+与 `oak-mcp 0.1.0`（依赖 crates.io `quercus-engine-rs 0.7.0` / `quercus-engine 0.7.0` /
 `quercus-task`、`quercus-node` 0.5.2）。
 
 结论：**基础剪辑链路可用；要“接近原片”，缺的不是剪辑命令，而是调色、字幕、混音、

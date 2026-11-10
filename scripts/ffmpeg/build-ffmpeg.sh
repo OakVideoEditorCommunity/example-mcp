@@ -47,7 +47,7 @@
 
 set -euo pipefail
 
-FFMPEG_VERSION="8.1"
+FFMPEG_VERSION="9.0"
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 PREFIX="$ROOT/.cache/ffmpeg"
 SRC="$ROOT/.cache/ffmpeg-src"

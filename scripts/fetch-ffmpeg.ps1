@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Download the pinned FFmpeg 8.1 Windows build into <repo>\.cache\ffmpeg and
+# Download the pinned FFmpeg 9.0 Windows build into <repo>\.cache\ffmpeg and
 # export the environment cargo needs.
 #
 # Usage (from the repository root, PowerShell):
@@ -61,23 +61,23 @@ if (-not $Prefix.StartsWith($CacheFull + $Separator, [StringComparison]::Ordinal
 }
 
 $GitHubBase = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest"
-$AtomGitBase = "https://atomgit.com/oak-and-quercus/FFmpeg/releases/download/v8.1"
+$AtomGitBase = "https://atomgit.com/oak-and-quercus/FFmpeg/releases/download/v9.0"
 $CloudflareBase = "https://ffmpeg.oakvideoeditor.org/ffmpeg"
 
 switch ($Source) {
     "GitHub" {
         $Base = $GitHubBase
-        $Asset = "ffmpeg-n8.1-latest-win64-gpl-shared-8.1.zip"
+        $Asset = "ffmpeg-n9.0-latest-win64-gpl-shared-9.0.zip"
         $RequirePublishedChecksum = $true
     }
     "AtomGit" {
         $Base = $AtomGitBase
-        $Asset = "ffmpeg-n8.1-latest-win64-gpl-shared-8.1.zip"
+        $Asset = "ffmpeg-n9.0-latest-win64-gpl-shared-9.0.zip"
         $RequirePublishedChecksum = $false
     }
     "Cloudflare" {
         $Base = $CloudflareBase
-        $Asset = "ffmpeg-n8.1-win64-gpl-shared-8.1-20261103.zip"
+        $Asset = "ffmpeg-n9.0-win64-gpl-shared-9.0.zip"
         $RequirePublishedChecksum = $false
     }
 }

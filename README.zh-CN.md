@@ -52,7 +52,7 @@ MCP 协议层使用官方 [`rmcp`](https://crates.io/crates/rmcp) SDK；`src/too
 ## 环境要求
 
 - Rust 1.88+（edition 2024；`rmcp` 要求 1.88）。
-- **FFmpeg 8.1**：Quercus 固定的工程构建（静态前缀 + `lib/pkgconfig`）。**不支持**发行版/系统自带的 FFmpeg。
+- **FFmpeg 9.0**：Quercus 固定的工程构建（静态前缀 + `lib/pkgconfig`）。**不支持**发行版/系统自带的 FFmpeg。
   Quercus 的构建脚本已经拷贝到本仓库 `scripts/` 下，**不需要**再准备 Quercus checkout：
   - **Linux/macOS**：先运行一次 `./scripts/install-deps.sh`（构建工具 + 系统库；可能要求 sudo/Homebrew），
     再运行 `./scripts/ffmpeg/build-ffmpeg.sh`，产物在 `.cache/ffmpeg`。
@@ -73,10 +73,8 @@ MCP 协议层使用官方 [`rmcp`](https://crates.io/crates/rmcp) SDK；`src/too
 GitHub 克隆或 BtbN 下载慢时，可以用镜像（自动化流程里先询问再切换）：
 
 - example-mcp：`https://atomgit.com/oak-and-quercus/example-mcp.git`
-- FFmpeg 8.1 Windows 包：
-  `https://atomgit.com/oak-and-quercus/FFmpeg/releases/download/v8.1/ffmpeg-n8.1-latest-win64-gpl-shared-8.1.zip`
-- Cloudflare 备用（AtomGit 抽风时）：
-  `https://ffmpeg.oakvideoeditor.org/ffmpeg/ffmpeg-n8.1-win64-gpl-shared-8.1-20261103.zip`
+- FFmpeg 9.0 Windows 包：镜像暂未发布（AtomGit 目前只有 8.1 归档）。在 v9.0 镜像上线前，
+  请使用 BtbN 主源，或在 Linux/macOS 上用 `./scripts/ffmpeg/build-ffmpeg.sh` 从源码构建。
 
 FFmpeg 镜像只用于 Windows。AtomGit/Cloudflare 可能没有上游 checksum；
 `fetch-ffmpeg.ps1` 此时要求加 `-AllowUnverified`，并打印 SHA-256。
@@ -87,7 +85,7 @@ FFmpeg 镜像只用于 Windows。AtomGit/Cloudflare 可能没有上游 checksum�
 
 ```sh
 ./scripts/install-deps.sh           # 只跑一次；构建工具 + 系统库（sudo/brew）
-./scripts/ffmpeg/build-ffmpeg.sh    # 只跑一次；固定 FFmpeg 8.1 -> .cache/ffmpeg
+./scripts/ffmpeg/build-ffmpeg.sh    # 只跑一次；固定 FFmpeg 9.0 -> .cache/ffmpeg
 ./scripts/build.sh build --release
 ./target/release/oak-mcp --check    # 引擎加载、序列和渲染管理器可用
 ```
@@ -107,7 +105,7 @@ cargo build --release
 ```
 
 脚本会从 [BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds/releases/tag/latest)
-下载 `ffmpeg-n8.1-latest-win64-gpl-shared-8.1.zip`，校验 `checksums.sha256`，解压到
+下载 `ffmpeg-n9.0-latest-win64-gpl-shared-9.0.zip`，校验 `checksums.sha256`，解压到
 `.cache\ffmpeg`，并设置 `FFMPEG_DIR`、`PKG_CONFIG_PATH`、`PATH`、`OCIO_RS_ENABLE_REAL=1`、
 `OCIO_RS_LINK=static`、`CC=cl`、`CXX=cl`。逻辑与 Quercus 的 Windows CI 一致。
 
@@ -125,17 +123,15 @@ GitHub 慢或被墙时，先询问用户，再切换：
 
 ```powershell
 $base = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest"
-$asset = "ffmpeg-n8.1-latest-win64-gpl-shared-8.1.zip"
-# GitHub 慢时可用镜像：
-#   https://atomgit.com/oak-and-quercus/FFmpeg/releases/download/v8.1/$asset
-#   https://ffmpeg.oakvideoeditor.org/ffmpeg/ffmpeg-n8.1-win64-gpl-shared-8.1-20261103.zip
+$asset = "ffmpeg-n9.0-latest-win64-gpl-shared-9.0.zip"
+# 9.0 的镜像暂未发布，先用主源。
 Invoke-WebRequest "$base/checksums.sha256" -OutFile "$env:TEMP\checksums.sha256"
 # 在 checksums.sha256 里找到 $asset 那一行，记下 SHA-256
 Invoke-WebRequest "$base/$asset" -OutFile "$env:TEMP\$asset"
 (Get-FileHash "$env:TEMP\$asset" -Algorithm SHA256).Hash  # 对比
 Expand-Archive "$env:TEMP\$asset" -DestinationPath .cache\ffmpeg-extract -Force
 # 把压缩包里的顶层目录移出来：
-Move-Item .cache\ffmpeg-extract\ffmpeg-n8.1-latest-win64-gpl-shared-8.1 .cache\ffmpeg
+Move-Item .cache\ffmpeg-extract\ffmpeg-n9.0-latest-win64-gpl-shared-9.0 .cache\ffmpeg
 $env:FFMPEG_DIR = "$PWD\.cache\ffmpeg"
 $env:PKG_CONFIG_PATH = "$PWD\.cache\ffmpeg\lib\pkgconfig"
 $env:PATH = "$PWD\.cache\ffmpeg\bin;$env:PATH"
@@ -151,7 +147,7 @@ cargo build --release
 **Linux/macOS。** 安装构建工具（`cmake`、`nasm`、`pkg-config`、`freetype`、`fontconfig`、
 C/C++ 工具链），然后按 `scripts/ffmpeg/build-ffmpeg.sh` 的同样步骤：把所有编解码库装进
 `.cache/ffmpeg`，用 `--prefix=$PWD/.cache/ffmpeg --pkg-config-flags=--static` 配置并安装
-FFmpeg 8.1。**强烈建议直接用仓库里的脚本**，因为编解码器集合和编译参数是固定的，手工很容易漏。
+FFmpeg 9.0。**强烈建议直接用仓库里的脚本**，因为编解码器集合和编译参数是固定的，手工很容易漏。
 
 如果 `$CARGO_HOME` 不可写（沙盒 CI），用项目内目录：
 
