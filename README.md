@@ -74,15 +74,10 @@ For a developer-oriented code walkthrough, see
   - **Windows**: run `. .\scripts\fetch-ffmpeg.ps1` (note the leading dot).
     It downloads the same BtbN/FFmpeg-Builds archive that Quercus CI uses,
     verifies its SHA-256 checksum, and unpacks it into `.cache\ffmpeg`.
-- **OpenColorIO 2.x** development files (`libOpenColorIO.so` + headers).
-  `quercus-core 0.7.0` and `quercus-render 0.7.0` use ocio-rs 0.3, whose
-  `bundled` feature, whose vendored yaml-cpp does not compile with GCC >= 13
-  (missing `#include <cstdint>`). This repository links the system OCIO:
-  `scripts/build.sh` sets `OCIO_INSTALL_DIR=/usr` and `OCIO_RS_LINK=dynamic`
-  on Linux; the Windows script sets the static/real path used by CI.
-  On macOS export `OCIO_INSTALL_DIR="$(brew --prefix opencolorio)"`.
-  If you must build the bundled copy instead, provide the missing includes, e.g.
-  `CXXFLAGS="-include cstdint"`, and unset `OCIO_INSTALL_DIR`.
+- **OpenColorIO** stays on the Quercus default: bundled/static via `ocio-rs`.
+  The vendored yaml-cpp is missing `#include <cstdint>` with GCC >= 13, so
+  `scripts/build.sh` adds `CXXFLAGS="-include cstdint"`; no system OCIO
+  installation or `OCIO_*` override is needed.
 
 `FFMPEG_DIR` is not checked in. `scripts/build.sh` uses `.cache/ffmpeg`
 automatically; on Windows the PowerShell script sets it for you.
@@ -97,7 +92,7 @@ mirrors (ask before switching in an automated flow):
   only the 8.1 archive). Use the primary BtbN source, or build from source with
   `./scripts/ffmpeg/build-ffmpeg.sh` on Linux/macOS, until a v9.0 mirror lands.
 
-The FFmpeg mirrors are Windows-only. AtomGit/Cloudflare may not publish an
+BtbN covers Linux/Windows; macOS builds from source. AtomGit/Cloudflare may not publish an
 upstream checksum; `fetch-ffmpeg.ps1` requires `-AllowUnverified` in that case
 and prints the SHA-256.
 
@@ -107,14 +102,24 @@ and prints the SHA-256.
 
 ```sh
 ./scripts/install-deps.sh           # once; build tools + system libs (sudo/brew)
-./scripts/ffmpeg/build-ffmpeg.sh    # once; pinned FFmpeg 9.0 -> .cache/ffmpeg
+
+# Linux: pinned BtbN FFmpeg 9.0 GPL shared
+./scripts/fetch-ffmpeg.sh
+export FFMPEG_DIR="$PWD/.cache/ffmpeg"
+export PKG_CONFIG_PATH="$FFMPEG_DIR/lib/pkgconfig"
+export LD_LIBRARY_PATH="$FFMPEG_DIR/lib"
+
+# macOS (no BtbN build): shared source build with VideoToolbox
+# ./scripts/ffmpeg/build-ffmpeg.sh --shared
+# export FFMPEG_DIR="$PWD/.cache/ffmpeg"
+
 ./scripts/build.sh build --release
 ./target/release/oak-mcp --check    # engine loads, sequence + render manager work
 ```
 
-`scripts/build.sh` sets the OCIO environment, uses `.cache/ffmpeg`, and forwards
-the cargo arguments (`build`, `test`, ...). Override `FFMPEG_DIR` or
-`OCIO_INSTALL_DIR` in the environment if your prefix differs.
+`scripts/build.sh` uses `.cache/ffmpeg`, keeps the bundled OCIO default, and
+forwards the cargo arguments (`build`, `test`, ...). Override `FFMPEG_DIR` if
+your prefix differs.
 
 ### Windows (PowerShell)
 
@@ -132,8 +137,8 @@ The script downloads
 `ffmpeg-n9.0-latest-win64-gpl-shared-9.0.zip` from
 [BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds/releases/tag/latest),
 verifies `checksums.sha256`, extracts it to `.cache\ffmpeg`, and sets
-`FFMPEG_DIR`, `PKG_CONFIG_PATH`, `PATH`, `OCIO_RS_ENABLE_REAL=1`,
-`OCIO_RS_LINK=static`, `CC=cl`, `CXX=cl`. This mirrors Quercus' Windows CI.
+`FFMPEG_DIR`, `PKG_CONFIG_PATH`, `PATH`, `CC=cl`, `CXX=cl`. OCIO stays on the
+Quercus default bundled build.
 
 If GitHub is slow or blocked, switch only after asking:
 
@@ -161,8 +166,6 @@ Move-Item .cache\ffmpeg-extract\ffmpeg-n9.0-latest-win64-gpl-shared-9.0 .cache\f
 $env:FFMPEG_DIR = "$PWD\.cache\ffmpeg"
 $env:PKG_CONFIG_PATH = "$PWD\.cache\ffmpeg\lib\pkgconfig"
 $env:PATH = "$PWD\.cache\ffmpeg\bin;$env:PATH"
-$env:OCIO_RS_ENABLE_REAL = "1"
-$env:OCIO_RS_LINK = "static"
 $env:CC = "cl"
 $env:CXX = "cl"
 cargo build --release

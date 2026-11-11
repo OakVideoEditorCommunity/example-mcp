@@ -10,13 +10,16 @@ if [[ -z "${FFMPEG_DIR:-}" ]]; then
     export FFMPEG_DIR="$PWD/.cache/ffmpeg"
   else
     echo "FFMPEG_DIR is not set and .cache/ffmpeg does not exist." >&2
-    echo "Build it first:" >&2
-    echo "  ./scripts/ffmpeg/build-ffmpeg.sh   # Linux/macOS" >&2
-    echo "  . .\scripts\fetch-ffmpeg.ps1      # Windows (PowerShell)" >&2
+    echo "Fetch/build FFmpeg first:" >&2
+    echo "  ./scripts/fetch-ffmpeg.sh          # Linux (BtbN shared)" >&2
+    echo "  ./scripts/ffmpeg/build-ffmpeg.sh --shared   # macOS" >&2
+    echo "  . .\scripts\fetch-ffmpeg.ps1       # Windows (PowerShell)" >&2
     exit 1
   fi
 fi
 
-export OCIO_INSTALL_DIR="${OCIO_INSTALL_DIR:-/usr}"
-export OCIO_RS_LINK="${OCIO_RS_LINK:-dynamic}"
+# Bundled OCIO's yaml-cpp needs <cstdint> with GCC >= 13 (Quercus default is
+# bundled OCIO; no system-OCIO override).
+cargo fetch
+bash scripts/fix-ocio-bundled.sh
 exec cargo "$@"

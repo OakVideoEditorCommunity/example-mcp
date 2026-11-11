@@ -1201,6 +1201,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "ffmpeg-next"
+version = "9.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6380599799e175191eb7ffe82c97f36a2a90a36cbc54c738a903e5287d7f516a"
+dependencies = [
+ "bitflags 2.13.2",
+ "ffmpeg-sys-next",
+ "libc",
+]
+
+[[package]]
+name = "ffmpeg-sys-next"
+version = "9.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c6f932d8c1cede016c65d4f1435f323369c99c74df55143b18676aa10e7603f9"
+dependencies = [
+ "bindgen 0.73.2",
+ "cc",
+ "libc",
+ "num_cpus",
+ "pkg-config",
+ "vcpkg",
+]
+
+[[package]]
 name = "find-msvc-tools"
 version = "0.1.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2610,9 +2635,9 @@ dependencies = [
 
 [[package]]
 name = "ocio-rs"
-version = "0.3.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "618c07d5d666139deb1c3032b9de5f6b4ffb3203e102716ad87cacf6455107e6"
+checksum = "f3492534019b59e29dba06014f907dd12824537ed4d293d4108c4bfc669de7fd"
 dependencies = [
  "ocio-sys",
  "thiserror 1.0.69",
@@ -2620,13 +2645,12 @@ dependencies = [
 
 [[package]]
 name = "ocio-sys"
-version = "0.3.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8eb7fc9fb0d5b255278fc7b6d68dcc85150fc8b86a9deab85d92246b74016b39"
+checksum = "e63251d72d848de5eda39d59cd6490260cf031738ebd518ea37d76b5aae614ec"
 dependencies = [
  "cc",
  "cmake",
- "system-deps",
 ]
 
 [[package]]
@@ -2902,27 +2926,25 @@ checksum = "d55d956fa96f5ec02be2e13af0e20391a5aa83d6a074e3ad368959d0fab299ea"
 
 [[package]]
 name = "quercus-audio"
-version = "0.7.0"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba58ba79dc326f83f8c26fac9e4123de3eb0a59cf89fde08d74eb3ed84ee13f2"
+checksum = "157417b5a0e1c0cc5d46fd08f59d7cde901c1dd20cf7d59f5ae42f64ad14b5fd"
 dependencies = [
  "cpal",
+ "ffmpeg-next",
  "quercus-codec",
  "quercus-core",
- "quercus-ffmpeg-link",
- "quercus-ffmpeg-next",
  "thiserror 2.0.21",
 ]
 
 [[package]]
 name = "quercus-codec"
-version = "0.7.0"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8ea9249267d9b0e97a18c053cd8d372258674dc1a1f30d5a981457e30aefb647"
+checksum = "bb2d994cc871af0e2c105c51cef7ffb3324549dabaf4c73bb75c42fc940c83e2"
 dependencies = [
+ "ffmpeg-next",
  "quercus-core",
- "quercus-ffmpeg-link",
- "quercus-ffmpeg-next",
  "subparse",
  "thiserror 2.0.21",
  "windows",
@@ -2930,9 +2952,9 @@ dependencies = [
 
 [[package]]
 name = "quercus-core"
-version = "0.7.0"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "53b7ac124e8ca0c2346b03df224656ff14dc57d473252f9c90488aeebf33f3b8"
+checksum = "5e471544c5e6bffc71cb13703ea26df5f1227ca7e17b6c97327c29e0ef426eb4"
 dependencies = [
  "ash",
  "half",
@@ -2953,15 +2975,14 @@ dependencies = [
 
 [[package]]
 name = "quercus-engine"
-version = "0.7.0"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6f31ec460904df067a1a555c2d3fd5205e760a98e832ae9bb099a3b68170bbaa"
+checksum = "9c0392bc7fb28ab5150345fa3d14ca434963565af6a54870660d6601ca215d58"
 dependencies = [
  "libc",
  "quercus-audio",
  "quercus-codec",
  "quercus-core",
- "quercus-ffmpeg-link",
  "quercus-node",
  "quercus-ofx-plugin",
  "quercus-otio",
@@ -2976,64 +2997,19 @@ dependencies = [
 
 [[package]]
 name = "quercus-engine-rs"
-version = "0.7.0"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1f0fd554cc3035de77c8a9582cd0c43d88d3350cd4de5758dfc149f66933d9c9"
+checksum = "209251fc32bc886bbd9ce4d0b599205aae4718bd1fc05fdf6dac6cb166669bfd"
 dependencies = [
  "quercus-engine",
  "thiserror 2.0.21",
 ]
 
 [[package]]
-name = "quercus-ffmpeg-bootstrap"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8864f1dee504844719fa342c9ef8b6f5616e82e6cba0e6beb595a966d4564c82"
-dependencies = [
- "sha2 0.10.9",
-]
-
-[[package]]
-name = "quercus-ffmpeg-link"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5eb83966767295433a08a6240c5088398ba1e9f2d52ee01809134d5219709a5c"
-dependencies = [
- "quercus-ffmpeg-bootstrap",
-]
-
-[[package]]
-name = "quercus-ffmpeg-next"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b7b7332f747aa8a867e7164b55dab4564b00a49d522d97eb03266b69eb2a0c32"
-dependencies = [
- "bitflags 2.13.2",
- "libc",
- "quercus-ffmpeg-link",
- "quercus-ffmpeg-sys",
-]
-
-[[package]]
-name = "quercus-ffmpeg-sys"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "23b7fc0e2fc384189a3d5ef9dbe2827e9619b2adf9367c178ada01ec233fcc4a"
-dependencies = [
- "bindgen 0.73.2",
- "cc",
- "libc",
- "num_cpus",
- "pkg-config",
- "quercus-ffmpeg-bootstrap",
- "vcpkg",
-]
-
-[[package]]
 name = "quercus-node"
-version = "0.7.0"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8bfb19c34ce99a1bf826a7eab26118ffcc20e10c88c964149d77e28c3247694d"
+checksum = "5e6a6c37a96f91177ae94b3d577ffa3f961dc9e2f0b55a9b55c50a1ca788fce3"
 dependencies = [
  "quercus-codec",
  "quercus-core",
@@ -3043,9 +3019,9 @@ dependencies = [
 
 [[package]]
 name = "quercus-ofx-plugin"
-version = "0.7.0"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2cc57dbdcdd4e328e7469dc568161b734ccf9e711ab5cb3eb1e938f5f8b488f5"
+checksum = "0f340e4f4a1dd7f4e19c59ab22476f52c51195fea9bb48c7a598874619febcf2"
 dependencies = [
  "cc",
  "libc",
@@ -3060,9 +3036,9 @@ dependencies = [
 
 [[package]]
 name = "quercus-otio"
-version = "0.7.0"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e3b42fa0a7309af72951ec2a27071d859cfde6d04f52780700573110991d3b0"
+checksum = "485c8a4375b0c8c445df0bb0e76c22454f3b32fdf81846f9eef2d26f38738a52"
 dependencies = [
  "quercus-core",
  "quick-xml",
@@ -3073,9 +3049,9 @@ dependencies = [
 
 [[package]]
 name = "quercus-render"
-version = "0.7.0"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8de2f31fef0c1dedf2424639d16418806888530551ed60820d95501b30f8e129"
+checksum = "eec57b946aded5a10751f4f521693dda94c7c47f53ec50e11c5fa9d5c71b842c"
 dependencies = [
  "cosmic-text",
  "libc",
@@ -3092,9 +3068,9 @@ dependencies = [
 
 [[package]]
 name = "quercus-storage"
-version = "0.7.0"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "76be9216460f876a0440f506549211647c9f960db4ac55f7043b875109ef1bbe"
+checksum = "9a9946e8652988f738086671fe45fb9eefb01823ca2d63ccf246b566c014723c"
 dependencies = [
  "chrono",
  "quercus-core",
@@ -3110,9 +3086,9 @@ dependencies = [
 
 [[package]]
 name = "quercus-task"
-version = "0.7.0"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "90d6dc66e7a0142b06f5156ace907bb9bc9dd0cf620b63a6fc3c72f2e937f38c"
+checksum = "5cd1d06c03852ba5eabe1fd1a1681060394f45e47400cde0c2d91abc7a67b202"
 dependencies = [
  "quercus-codec",
  "quercus-core",
@@ -3125,9 +3101,9 @@ dependencies = [
 
 [[package]]
 name = "quercus-timeline"
-version = "0.7.0"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2816ff2e54874787340775b4505c3428efce71d4f17c1df5c038ef9202738e7e"
+checksum = "8e5c4cf822d4b8a063bef2ac20b04b2555c97d61b761431f5e8da6f085a09072"
 dependencies = [
  "quercus-core",
  "quercus-node",
@@ -3137,9 +3113,9 @@ dependencies = [
 
 [[package]]
 name = "quercus-undo"
-version = "0.7.0"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "44baff0ae45e1d8b528083d1b4c12fc88087b3d3b95f6282a45a46d1e56728d7"
+checksum = "d4c9bf527e576f4e5c171d8b804e84c62e344a27f2c3d112d3cef8e8d560499e"
 dependencies = [
  "thiserror 2.0.21",
 ]
