@@ -10,7 +10,12 @@ patched=0
 for f in "$ROOT"/registry/src/*/ocio-sys-0.2.1/vendor/OpenColorIO/ext/ocio-rs-deps/yaml-cpp/src/emitterutils.cpp; do
   [ -f "$f" ] || continue
   if ! grep -q '^#include <cstdint>' "$f"; then
-    sed -i '1i #include <cstdint>' "$f"
+    python3 - "$f" <<'PYFIX'
+import sys
+path = sys.argv[1]
+text = open(path, encoding="utf-8").read()
+open(path, "w", encoding="utf-8").write("#include <cstdint>\n" + text)
+PYFIX
     echo "patched $f"
     patched=1
   fi
