@@ -1,6 +1,6 @@
 [package]
 name = "oak-mcp"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 rust-version = "1.88"
 description = "Model Context Protocol server exposing the Quercus video-editing engine (quercus-engine-rs) as tools"
@@ -14,7 +14,7 @@ name = "oak-mcp"
 path = "src/main.rs"
 
 [dependencies]
-quercus-engine-rs = "0.7.1"
+quercus-engine-rs = { version = "0.7.2", path = "/Volumes/ExternalStorage/Projects/quercus-engine/crates/quercus-engine-rs" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 base64 = "0.22"
